@@ -1,0 +1,29 @@
+{
+  "name": "n8n-nodes-ovms",
+  "version": "0.1.0",
+  "description": "n8n community node for OpenVINO Model Server",
+  "main": "dist/index.js",
+  "keywords": [
+    "n8n-community-node-package"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "credentials": [
+      "dist/credentials/OvmsApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/OvmsNode/OvmsNode.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "n8n-workflow": "*"
+  }
+}

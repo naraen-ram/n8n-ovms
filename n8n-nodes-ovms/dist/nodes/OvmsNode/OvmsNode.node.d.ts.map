@@ -1,0 +1,1 @@
+{"version":3,"file":"OvmsNode.node.d.ts","sourceRoot":"","sources":["../../../src/nodes/OvmsNode/OvmsNode.node.ts"],"names":[],"mappings":"AAAA,OAAO,EACH,iBAAiB,EACjB,kBAAkB,EAClB,SAAS,EACT,oBAAoB,EAEvB,MAAM,cAAc,CAAC;AAEtB,qBAAa,QAAS,YAAW,SAAS;IACtC,WAAW,EAAE,oBAAoB,CA2I/B;IAEI,OAAO,CAAC,IAAI,EAAE,iBAAiB,GAAG,OAAO,CAAC,kBAAkB,EAAE,EAAE,CAAC;CA0H1E"}

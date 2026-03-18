@@ -1,0 +1,19 @@
+# Python virtual environment
+ovms-env/
+
+# Documentation
+documentation.txt
+
+# Generated code node file
+scripts/code_node.js
+scripts/tensor_output.txt
+
+# Node modules
+n8n-nodes-ovms/node_modules/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Environment files
+.env
