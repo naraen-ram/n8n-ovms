@@ -119,6 +119,8 @@ curl.exe -X POST http://localhost:5678/webhook-test/process-pdf ^
 
 ![webhook response](screenshots/respond.png)
 
+**Terminal Output**
+![webhook response](screenshots/opterminal.png)
 
 ---
 
@@ -126,11 +128,6 @@ curl.exe -X POST http://localhost:5678/webhook-test/process-pdf ^
 
 - The preprocessing service currently processes only the first page of a PDF
 - The OVMS node expects a tensor input (handled by the preprocessing service)
-- Model must be placed in correct OVMS format:
-
-```
-/models/text-detection/1/model.xml
-```
 
 ---
 
