@@ -8,142 +8,35 @@ import {
 
 export class OvmsNode implements INodeType {
     description: INodeTypeDescription = {
-        displayName: 'OpenVINO Model Server',
+        displayName: 'OVMS Text Detection',
         name: 'ovmsNode',
         icon: 'file:ovms.svg',
         group: ['transform'],
         version: 1,
-        description: 'Run AI inference on Intel hardware via OpenVINO Model Server',
+        description: 'Run inference on OpenVINO Model Server using preprocessed tensor input',
         defaults: {
-            name: 'OpenVINO Model Server',
+            name: 'OVMS Text Detection',
         },
         inputs: ['main'],
         outputs: ['main'],
-        credentials: [
-            {
-                name: 'ovmsApi',
-                required: true,
-            },
-        ],
         properties: [
-            // --- Operation selector ---
             {
-                displayName: 'Operation',
-                name: 'operation',
-                type: 'options',
-                noDataExpression: true,
-                options: [
-                    {
-                        name: 'Health Check',
-                        value: 'healthCheck',
-                        description: 'Check if OVMS is running and ready',
-                    },
-                    {
-                        name: 'Get Model Info',
-                        value: 'getModelInfo',
-                        description: 'Get input/output shapes for a model',
-                    },
-                    {
-                        name: 'Run Inference',
-                        value: 'runInference',
-                        description: 'Send data to a model and get predictions',
-                    },
-                ],
-                default: 'runInference',
+                displayName: 'OVMS URL',
+                name: 'ovmsUrl',
+                type: 'string',
+                default: 'http://host.docker.internal:9001',
             },
-
-            // --- Model name (shown for getModelInfo and runInference) ---
             {
                 displayName: 'Model Name',
                 name: 'modelName',
                 type: 'string',
-                default: '',
-                placeholder: 'face-detection',
-                description: 'The name of the model as registered in OVMS',
-                displayOptions: {
-                    show: {
-                        operation: ['getModelInfo', 'runInference'],
-                    },
-                },
+                default: 'text-detection',
             },
-
-            // --- Device selector (shown only for runInference) ---
             {
-                displayName: 'Device',
-                name: 'device',
-                type: 'options',
-                options: [
-                    {
-                        name: 'AUTO (Recommended)',
-                        value: 'AUTO',
-                        description: 'Let OpenVINO pick the best available device',
-                    },
-                    {
-                        name: 'CPU',
-                        value: 'CPU',
-                    },
-                    {
-                        name: 'GPU',
-                        value: 'GPU',
-                    },
-                    {
-                        name: 'NPU',
-                        value: 'NPU',
-                    },
-                ],
-                default: 'AUTO',
-                displayOptions: {
-                    show: {
-                        operation: ['runInference'],
-                    },
-                },
-            },
-
-            // --- Input tensor name ---
-            {
-                displayName: 'Input Name',
-                name: 'inputName',
-                type: 'string',
-                default: 'data',
-                description: 'The input tensor name — get this from Get Model Info',
-                displayOptions: {
-                    show: {
-                        operation: ['runInference'],
-                    },
-                },
-            },
-
-            // --- Input shape ---
-            {
-                displayName: 'Input Shape',
-                name: 'inputShape',
-                type: 'string',
-                default: '1,3,300,300',
-                placeholder: '1,3,300,300',
-                description: 'Comma-separated tensor shape — get this from Get Model Info',
-                displayOptions: {
-                    show: {
-                        operation: ['runInference'],
-                    },
-                },
-            },
-
-            // --- Input data ---
-            {
-                displayName: 'Input Data',
-                name: 'inputData',
-                type: 'string',
-                typeOptions: {
-                    rows: 4,
-                },
-                default: '',
-                placeholder: '0.1, 0.5, 0.3 ...',
-                description: 'Comma-separated float values to send as the input tensor',
-                displayOptions: {
-                    show: {
-                        operation: ['runInference'],
-                    },
-                },
+                displayName: 'Confidence Threshold',
+                name: 'threshold',
+                type: 'number',
+                default: 0.5,
             },
         ],
     };
@@ -152,116 +45,65 @@ export class OvmsNode implements INodeType {
         const items = this.getInputData();
         const returnData: INodeExecutionData[] = [];
 
-        // Get credentials
-        const credentials = await this.getCredentials('ovmsApi');
-        const serverUrl = (credentials.serverUrl as string).replace(/\/$/, '');
-
         for (let i = 0; i < items.length; i++) {
-            const operation = this.getNodeParameter('operation', i) as string;
-
             try {
-                // ── HEALTH CHECK ──────────────────────────────────────
-                if (operation === 'healthCheck') {
-                    const response = await this.helpers.httpRequest({
-                        method: 'GET',
-                        url: `${serverUrl}/v2/health/ready`,
-                    });
+                const ovmsUrl = this.getNodeParameter('ovmsUrl', i) as string;
+                const modelName = this.getNodeParameter('modelName', i) as string;
+                const threshold = this.getNodeParameter('threshold', i) as number;
 
-                    returnData.push({
-                        json: {
-                            status: 'ok',
-                            message: 'OVMS is running and ready',
-                            server_url: serverUrl,
-                        },
-                    });
+                const tensor = items[i].json.tensor;
+
+                if (!tensor) {
+                    throw new Error('No tensor found in input. Expected: json.tensor');
                 }
 
-                // ── GET MODEL INFO ────────────────────────────────────
-                else if (operation === 'getModelInfo') {
-                    const modelName = this.getNodeParameter('modelName', i) as string;
+                const payload = {
+                    inputs: [{
+                        name: 'Placeholder',
+                        shape: [1, 768, 1280, 3],
+                        datatype: 'FP32',
+                        data: tensor,
+                    }],
+                };
 
-                    const response = await this.helpers.httpRequest({
-                        method: 'GET',
-                        url: `${serverUrl}/v2/models/${modelName}`,
-                    });
+                const response = await this.helpers.httpRequest({
+                    method: 'POST',
+                    url: `${ovmsUrl}/v2/models/${modelName}/infer`,
+                    body: payload,
+                    headers: { 'Content-Type': 'application/json' },
+                });
 
-                    returnData.push({
-                        json: {
-                            model_name: response.name,
-                            versions: response.versions,
-                            platform: response.platform,
-                            inputs: response.inputs,
-                            outputs: response.outputs,
-                        },
-                    });
+                const segmOutput = response.outputs.find((o: any) =>
+                    o.name.includes('segm')
+                );
+
+                const segmData: number[] = segmOutput.data;
+
+                const H = 192;
+                const W = 320;
+
+                let textPixels = 0;
+
+                for (let row = 0; row < H; row++) {
+                    for (let col = 0; col < W; col++) {
+                        const idx = (row * W + col) * 2 + 1;
+                        if (segmData[idx] > threshold) {
+                            textPixels++;
+                        }
+                    }
                 }
 
-                // ── RUN INFERENCE ─────────────────────────────────────
-                else if (operation === 'runInference') {
-                    const modelName = this.getNodeParameter('modelName', i) as string;
-                    const device = this.getNodeParameter('device', i) as string;
-                    const inputName = this.getNodeParameter('inputName', i) as string;
-                    const inputShape = (this.getNodeParameter('inputShape', i) as string)
-                        .split(',')
-                        .map((s) => parseInt(s.trim(), 10));
-                    const inputData = (this.getNodeParameter('inputData', i) as string)
-                        .split(',')
-                        .map((s) => parseFloat(s.trim()));
+                const coverage = (textPixels / (H * W)) * 100;
 
-                    // Build KServe v2 payload — exactly what your Python script built
-                    const payload = {
-                        inputs: [
-                            {
-                                name: inputName,
-                                shape: inputShape,
-                                datatype: 'FP32',
-                                data: inputData,
-                            },
-                        ],
-                    };
-
-                    const response = await this.helpers.httpRequest({
-                        method: 'POST',
-                        url: `${serverUrl}/v2/models/${modelName}/infer`,
-                        body: payload,
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                    });
-
-                    // Parse the response
-                    const output = response.outputs[0];
-
-                    returnData.push({
-                        json: {
-                            model_name: response.model_name,
-                            model_version: response.model_version,
-                            // Device the user requested
-                            device_requested: device,
-                            // Device that actually ran inference
-                            // OVMS returns this in response metadata
-                            // For now reflects requested device — AUTO plugin
-                            // will populate this dynamically in future iteration
-                            executed_on: device,
-                            output_name: output.name,
-                            output_shape: output.shape,
-                            output_datatype: output.datatype,
-                            raw_output: output.data,
-                        },
-                    });
-                }
+                returnData.push({
+                    json: {
+                        text_pixels: textPixels,
+                        text_coverage_percent: parseFloat(coverage.toFixed(2)),
+                        has_text: textPixels > 100,
+                    },
+                });
 
             } catch (error) {
-                if (this.continueOnFail()) {
-                    returnData.push({
-                        json: {
-                            error: (error as Error).message,
-                            operation,
-                            server_url: serverUrl,
-                        },
-                    });
-                    continue;
-                }
                 throw new NodeOperationError(this.getNode(), error as Error, {
                     itemIndex: i,
                 });

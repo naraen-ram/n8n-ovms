@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+
+  pdf-service:
+    build: ./pdf-service
+    container_name: pdf-service
+    ports:
+      - "8000:8000"
+
+  ovms:
+    image: openvino/model_server:latest
+    container_name: ovms
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    command:
+      - --config_path
+      - /models/config.json
+      - --port
+      - "9000"
+      - --rest_port
+      - "9001"
+    volumes:
+      - ./ovms_models:/models
+
+  n8n:
+    image: n8nio/n8n
+    container_name: n8n
+    ports:
+      - "5678:5678"
+    environment:
+      - N8N_SECURE_COOKIE=false
+    volumes:
+      - ${APPDATA}/n8n:/home/node/.n8n
+      - ./n8n-nodes-ovms/dist:/home/node/.n8n/custom/node_modules/n8n-nodes-ovms
+    depends_on:
+      - pdf-service
+      - ovms

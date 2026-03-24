@@ -1,0 +1,13 @@
+{
+    "model_config_list": [
+        {
+            "config": {
+                "name": "text-detection",
+                "base_path": "/models/text-detection",
+                "model_version_policy": {
+                    "all": {}
+                }
+            }
+        }
+    ]
+}
